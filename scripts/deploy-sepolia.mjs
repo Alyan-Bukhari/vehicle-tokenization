@@ -8,7 +8,10 @@ const env=JSON.parse(fs.readFileSync(resolve(root,'.local/cloud/production-env.j
 const wallet=JSON.parse(fs.readFileSync(resolve(root,'.local/cloud/sepolia-deployer.json')));
 const web3=new Web3(env.BLOCKCHAIN_RPC_URL);
 if(Number(await web3.eth.getChainId())!==11155111)throw new Error('Refusing to deploy outside Ethereum Sepolia.');
-const account=web3.eth.accounts.wallet.add(wallet.privateKey);
+web3.eth.accounts.wallet.add(wallet.privateKey);
+// Bound Sepolia fees so faucet funds are not consumed by the provider's default tip.
+const baseFee=BigInt((await web3.eth.getBlock('latest')).baseFeePerGas||0);
+const fees={maxPriorityFeePerGas:10000000n,maxFeePerGas:baseFee*2n+10000000n};
 const balance=await web3.eth.getBalance(wallet.address);
 if(balance===0n){console.log('Waiting for free Sepolia test ETH in',wallet.address);process.exitCode=2;}
 else {
@@ -21,7 +24,7 @@ else {
   const method=new web3.eth.Contract(definition.abi).deploy({data:definition.bytecode,arguments:args});
   const gas=await method.estimateGas({from:wallet.address});
   console.log('Deploying',name,'to Sepolia; estimated gas',gas.toString());
-  const contract=await method.send({from:wallet.address,gas:Math.ceil(Number(gas)*1.15)});
+  const contract=await method.send({from:wallet.address,...fees,gas:Math.ceil(Number(gas)*1.15)});
   saved[name]=contract.options.address;fs.writeFileSync(file,JSON.stringify(saved,null,2),{mode:0o600});
   console.log(name,contract.options.address);return contract;
  }
@@ -29,7 +32,7 @@ else {
  const nft=await deploy('VehicleNFT',[wallet.address,registry.options.address]);
  if((await registry.methods.certificateContract().call()).toLowerCase()!==nft.options.address.toLowerCase()) {
   const method=registry.methods.setCertificateContract(nft.options.address);
-  await method.send({from:wallet.address,gas:Math.ceil(Number(await method.estimateGas({from:wallet.address}))*1.15)});
+  await method.send({from:wallet.address,...fees,gas:Math.ceil(Number(await method.estimateGas({from:wallet.address}))*1.15)});
  }
  Object.assign(env,{REGISTRY_ADDRESS:registry.options.address,VITE_REGISTRY_ADDRESS:registry.options.address,VITE_NFT_ADDRESS:nft.options.address});
  fs.writeFileSync(resolve(root,'.local/cloud/production-env.json'),JSON.stringify(env),{mode:0o600});

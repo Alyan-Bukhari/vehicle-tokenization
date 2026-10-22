@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 
 // 📌 Health Check Route
-router.get('/health', (req, res) => {
+router.get('/health', async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
     res.status(200).json({
       success: true,
     message: 'TaxTron API is running',
+    database: { status: 'connected' },
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   });
+  } catch {
+    res.status(503).json({success:false,message:'The database is temporarily unavailable.',database:{status:'unavailable'}});
+  }
 });
 
 

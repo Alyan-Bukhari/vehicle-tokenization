@@ -14,6 +14,7 @@
     "test": "node --test tests/api.test.cjs",
     "test:contracts": "cd taxtron/backend && truffle test --network development",
     "check": "node scripts/check.mjs",
+    "check:hosted": "node scripts/check-hosted.mjs",
     "test:integration": "node scripts/test-integration.mjs",
     "lint": "npm --prefix taxtron/frontend run lint",
     "seed:demo": "node scripts/seed-demo.mjs"

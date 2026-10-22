@@ -26,6 +26,10 @@ Press Ctrl+C in the dev terminal to stop the services it started. Services it re
 
 The repository includes a Vercel Services configuration (currently a Vercel beta) that deploys the Vite frontend and Express API together. The API owns `/api`; frontend deep links fall back to `index.html`.
 
+The production address must be attached under the project's Domains settings. A generated deployment/branch alias can remain behind Vercel Authentication even after promotion; unauthenticated API requests then redirect to Vercel sign-in. Keep preview protection enabled and use the attached production domain for the app and API.
+
+Run `npm run check:hosted` to verify the live production address without Vercel credentials or bypass tokens. To check another deployment, use `npm run check:hosted -- https://your-production-domain`. It verifies public API access, an actual MongoDB ping and catalogue read, wallet lookup, appointment availability, and frontend deep links. `/api/health` reports `database.status: connected` only after MongoDB responds to a ping.
+
 Hosted deployments require an Atlas `MONGO_URI`, a generated `JWT_SECRET`, `MEDIA_STORAGE=mongodb`, a hosted `BLOCKCHAIN_RPC_URL`, the deployed `REGISTRY_ADDRESS`, and the matching `NETWORK_ID`/`CHAIN_ID`. Uploaded photos persist in MongoDB, with a 4 MB image limit. The API reuses a small database connection pool across requests.
 
 Set the frontend's `VITE_CHAIN_ID`, `VITE_CHAIN_NAME`, `VITE_RPC_URL`, `VITE_REGISTRY_ADDRESS` and `VITE_NFT_ADDRESS` to the same network. For free testing, use Ethereum Sepolia (chain ID `11155111`) and faucet-funded test ETH. The Sepolia deployment script refuses to run on other networks. Never deploy the documented local admin password or local Ganache private keys as cloud credentials.

@@ -1,5 +1,5 @@
 export default {
-  "address": "0x299C09EDb454d85134d9206d420a6655961D60B4",
+  "address": import.meta.env.VITE_REGISTRY_ADDRESS || "0x299C09EDb454d85134d9206d420a6655961D60B4",
   "abi": [
     {
       "inputs": [
@@ -976,3 +976,5 @@ export default {
     }
   ]
 };
+
+export const NFT_ADDRESS = import.meta.env.VITE_NFT_ADDRESS || "0x7207C81a45bc253bb8Acf227447894208107ecD1";

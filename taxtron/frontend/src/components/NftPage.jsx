@@ -1,3 +1,5 @@
+import {network} from '../config/network';
+import registryConfig, { NFT_ADDRESS } from '../contractConfig';
 import { ensureLocalNetwork } from '../utils/network';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -41,8 +43,8 @@ const NFTPage = () => {
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   // Contract configurations
-  const VEHICLE_REGISTRY_ADDRESS = "0x299C09EDb454d85134d9206d420a6655961D60B4";
-  const VEHICLE_NFT_ADDRESS = "0x7207C81a45bc253bb8Acf227447894208107ecD1";
+  const VEHICLE_REGISTRY_ADDRESS = registryConfig.address;
+  const VEHICLE_NFT_ADDRESS = NFT_ADDRESS;
 
   // Get the ABI in the correct format
   const CONTRACT_ABI = vehicleRegistryABI.abi || vehicleRegistryABI;
@@ -64,7 +66,7 @@ const NFTPage = () => {
       const web3Instance = new Web3(window.ethereum);
       setWeb3(web3Instance);
     } else {
-      setWeb3(new Web3('http://127.0.0.1:7545'));
+      setWeb3(new Web3(network.rpcUrl));
     }
   };
 
@@ -123,7 +125,7 @@ const NFTPage = () => {
   };
 
   const fetchBlockchainData = async () => {
-    const reader = new Web3('http://127.0.0.1:7545');
+    const reader = new Web3(network.rpcUrl);
 
     try {
       const nftContract = new reader.eth.Contract(NFT_ABI, VEHICLE_NFT_ADDRESS);

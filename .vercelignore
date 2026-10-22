@@ -1,0 +1,11 @@
+.git
+.local
+node_modules
+**/node_modules
+**/.env
+**/.env.*
+**/tmp
+**/uploads
+**/dist
+**/build
+.playwright-mcp

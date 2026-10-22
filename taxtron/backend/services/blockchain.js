@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const web3 = new Web3(process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545');
 function registry() {
- const artifact=JSON.parse(fs.readFileSync(path.join(__dirname,'../build/contracts/VehicleRegistration.json')));
+ const artifact=process.env.REGISTRY_ADDRESS ? {abi:require('../config/registryABI.json'),networks:{}} : JSON.parse(fs.readFileSync(path.join(__dirname,'../build/contracts/VehicleRegistration.json')));
  const address=process.env.REGISTRY_ADDRESS || artifact.networks[process.env.NETWORK_ID||'5777']?.address;
  if(!address) throw Object.assign(new Error('Deploy the vehicle contracts first.'),{status:503});
  return new web3.eth.Contract(artifact.abi,address);

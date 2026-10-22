@@ -22,6 +22,16 @@ Services bind to loopback: frontend 5173, API 5001, MongoDB 27017, Ganache 7545.
 
 Press Ctrl+C in the dev terminal to stop the services it started. Services it reused remain running. Do not delete `.local/` unless you intend to reset local data.
 
+## Vercel hosting
+
+The repository includes a Vercel Services configuration (currently a Vercel beta) that deploys the Vite frontend and Express API together. The API owns `/api`; frontend deep links fall back to `index.html`.
+
+Hosted deployments require an Atlas `MONGO_URI`, a generated `JWT_SECRET`, `MEDIA_STORAGE=mongodb`, a hosted `BLOCKCHAIN_RPC_URL`, the deployed `REGISTRY_ADDRESS`, and the matching `NETWORK_ID`/`CHAIN_ID`. Uploaded photos persist in MongoDB, with a 4 MB image limit. The API reuses a small database connection pool across requests.
+
+Set the frontend's `VITE_CHAIN_ID`, `VITE_CHAIN_NAME`, `VITE_RPC_URL`, `VITE_REGISTRY_ADDRESS` and `VITE_NFT_ADDRESS` to the same network. For free testing, use Ethereum Sepolia (chain ID `11155111`) and faucet-funded test ETH. The Sepolia deployment script refuses to run on other networks. Never deploy the documented local admin password or local Ganache private keys as cloud credentials.
+
+An unclaimed Atlas test cluster pauses after two days and is deleted after seven days. Claim it through its private Atlas claim page to retain it as a standard free cluster. Claim links and connection strings are saved only in ignored local configuration; never commit or share them publicly.
+
 ## Wallet setup
 
 Install MetaMask in a browser with extension support. The in-app browser can show the UI and admin pages, but does not provide MetaMask.

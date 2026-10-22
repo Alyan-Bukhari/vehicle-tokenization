@@ -1,3 +1,4 @@
+import registryConfig, { NFT_ADDRESS } from '../contractConfig';
 import { ensureLocalNetwork } from '../utils/network';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +33,7 @@ const AdminTaxManagement = () => {
   const [web3, setWeb3] = useState(null);
 
   // Contract configuration
-  const CONTRACT_ADDRESS = "0x299C09EDb454d85134d9206d420a6655961D60B4";
+  const CONTRACT_ADDRESS = registryConfig.address;
   const CONTRACT_ABI = contractABIData.abi || contractABIData;
 
   useEffect(() => {

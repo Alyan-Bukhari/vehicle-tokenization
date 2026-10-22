@@ -1,3 +1,4 @@
+import registryConfig, { NFT_ADDRESS } from '../contractConfig';
 import { ensureLocalNetwork } from '../utils/network';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -28,7 +29,7 @@ const TaxPayment = () => {
   const [user, setUser] = useState(null);
 
   // Vehicle Registration contract address
-  const CONTRACT_ADDRESS = "0x299C09EDb454d85134d9206d420a6655961D60B4"; // Your deployed Vehicle Registration contract
+  const CONTRACT_ADDRESS = registryConfig.address; // Your deployed Vehicle Registration contract
   const CONTRACT_ABI = contractABIData.abi || contractABIData;
 
   useEffect(() => {

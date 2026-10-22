@@ -77,7 +77,8 @@ test('admin image uploads work without external API keys',async()=>{
  const form=new FormData();form.append('file',new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4foAAAAASUVORK5CYII=','base64')],{type:'image/png'}),'vehicle.png');
  const response=await fetch(base+'/media/image',{method:'POST',headers:{Authorization:`Bearer ${adminToken}`},body:form});
  assert.equal(response.status,201);const data=await response.json();assert.equal((await fetch('http://127.0.0.1:5099'+data.url)).status,200);
- const fs=require('node:fs');fs.unlinkSync(path.join(backend,'uploads',path.basename(data.url)));
+ if(process.env.MEDIA_STORAGE==='mongodb')assert.ok(await requireBackend('./models/media').exists({name:path.basename(data.url)}));
+ else {const fs=require('node:fs');fs.unlinkSync(path.join(backend,'uploads',path.basename(data.url)));}
 });
 
 test('quoted CSV import preserves fields and leaves payment pending',async()=>{

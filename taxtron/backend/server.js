@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -17,7 +18,7 @@ const ownershipTransferRoutes = require('./routes/ownershipTransferRoutes');
 dotenv.config();
 
 // Set default values if not provided
-if (!process.env.MONGO_URI) {
+if (!process.env.MONGO_URI && !process.env.VERCEL) {
   process.env.MONGO_URI = 'mongodb://localhost:27017/taxtron';
 }
 if (!process.env.PORT) {
@@ -31,9 +32,18 @@ const app = express();
 
 // Middleware
 app.use(cors());
+app.use('/api', async (req,res,next) => {
+  try {
+    if (!process.env.MONGO_URI) return res.status(503).json({success:false,message:'The hosted database is not configured.'});
+    await connectDB();
+    next();
+  } catch(error) {
+    res.status(503).json({success:false,message:'The database is temporarily unavailable. Please try again.'});
+  }
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(fileUpload({ useTempFiles: true, limits:{fileSize:5*1024*1024}, abortOnLimit:true, tempFileDir:require('path').join(__dirname,'tmp') }));
+app.use(fileUpload({ useTempFiles: true, limits:{fileSize:4*1024*1024}, abortOnLimit:true, tempFileDir:process.env.VERCEL ? require('os').tmpdir() : require('path').join(__dirname,'tmp') }));
 app.use('/api/media',require('./routes/mediaRoutes'));
 app.use('/api/blockchain',require('./routes/blockchainRoutes'));
 
@@ -107,16 +117,14 @@ app.use((err, req, res, next) => {
   res.status(status).json({ success:false, message:status===500?'The request could not be completed. Please try again.':err.message });
 });
 
-// Connect to database first
-connectDB().then(() => {
-  console.log('Connected to the database successfully!');
+module.exports = app;
 
-  // Set up the server
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
-    console.log(`Server running on port ${PORT}`);
+if (require.main === module && !process.env.VERCEL) {
+  connectDB().then(() => {
+    const port = process.env.PORT || 5001;
+    app.listen(port, process.env.HOST || '127.0.0.1', () => console.log(`Server running on port ${port}`));
+  }).catch(error => {
+    console.error('Database connection failed:', error.message);
+    process.exitCode = 1;
   });
-}).catch((err) => {
-  console.error('Database connection failed:', err);
-  process.exit(1);
-});
+}

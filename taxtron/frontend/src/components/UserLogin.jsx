@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TaxTronLogo from './TaxTronLogo';
 
 const UserLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [loginData, setLoginData] = useState({
@@ -44,7 +45,8 @@ const UserLogin = () => {
         localStorage.setItem('userData', JSON.stringify(data.data.user));
 
         // Redirect to dashboard
-        navigate('/dashboard', { state: { user: data.data.user } });
+        const destination = location.state?.from?.pathname;
+        navigate(destination?.startsWith('/') && !destination.startsWith('//') && !destination.startsWith('/admin') ? destination : '/dashboard', {replace:true, state:{user:data.data.user}});
       } else {
         setError(data.message || 'Login failed');
       }

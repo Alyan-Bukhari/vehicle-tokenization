@@ -17,6 +17,7 @@ export default function AdminInspect() {
     async function fetchInspections() {
       try {
         setLoading(true);
+        setError(null);
         let url = '/api/inspections';
         if (statusFilter) {
           url += `?status=${statusFilter}`;

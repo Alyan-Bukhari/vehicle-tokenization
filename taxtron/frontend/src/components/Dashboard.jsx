@@ -31,6 +31,7 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [stats, setStats] = useState({
@@ -147,6 +148,7 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const token = localStorage.getItem('userToken');
 
       // Fetch vehicles for tax payment (approved vehicles)
@@ -183,7 +185,7 @@ const Dashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      setLoadError(error.response?.data?.message || 'Dashboard data could not be loaded. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -254,6 +256,7 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <div className="flex-1 lg:ml-0 flex flex-col overflow-hidden">
+          {loadError && <div role="alert" className="bg-red-50 text-red-800 p-4">{loadError} <button className="underline ml-2" onClick={fetchDashboardData}>Retry</button></div>}
           {/* Header */}
           <div className="sticky top-0 z-30 bg-white backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(0,0,0,0.08)]">
             <div className="px-6 py-4">
@@ -266,10 +269,10 @@ const Dashboard = () => {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50">
+                  <button aria-label="View notifications" onClick={() => navigate('/notifications')} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50">
                     <Bell className="w-6 h-6" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50">
+                  <button aria-label="View vehicles" onClick={() => navigate('/vehicles')} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50">
                     <Search className="w-6 h-6" />
                   </button>
 

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {hasSession} from '../utils/session';
 
 const AuthContext = createContext();
 
@@ -11,14 +12,17 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('adminToken')));
+  const [isLoggedIn, setIsLoggedIn] = useState(() => hasSession('admin'));
 
   // Check if user is already logged in when the app loads
   useEffect(() => {
-    const adminToken = localStorage.getItem('adminToken');
-    if (adminToken) {
-      setIsLoggedIn(true);
-    }
+    const sync = () => setIsLoggedIn(hasSession('admin'));
+    window.addEventListener('storage', sync);
+    window.addEventListener('session-expired', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('session-expired', sync);
+    };
   }, []);
 
   const login = () => {

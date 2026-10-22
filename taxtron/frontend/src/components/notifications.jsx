@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import {storedUser} from '../utils/session';
 
 const Notifications = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const account = location.state?.account;
+  const account = location.state?.account || storedUser()?.walletAddress;
   const [inspectionData, setInspectionData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [paymentStatuses, setPaymentStatuses] = useState({});
 
   const checkPaymentStatus = async (inspectionId) => {
@@ -65,7 +67,7 @@ const Notifications = () => {
           setInspectionData([]);
         }
       } catch (err) {
-        console.error("Failed to fetch inspection data:", err);
+        setError(err.response?.data?.message || 'Inspection notifications could not be loaded. Please refresh to retry.');
         setInspectionData([]);
       } finally {
         setLoading(false);
@@ -122,6 +124,7 @@ const Notifications = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto px-8 pb-8">
+          {error && <div role="alert" className="p-4 mb-4 text-red-300">{error}</div>}
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-400">Loading notifications...</div>

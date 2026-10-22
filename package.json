@@ -11,7 +11,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "npm --prefix taxtron/frontend run build",
     "deploy": "node scripts/deploy.mjs",
-    "test": "node --test tests/api.test.cjs",
+    "test": "node --test tests/api.test.cjs tests/session.test.mjs",
     "test:contracts": "cd taxtron/backend && truffle test --network development",
     "check": "node scripts/check.mjs",
     "check:hosted": "node scripts/check-hosted.mjs",

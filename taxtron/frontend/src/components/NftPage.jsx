@@ -64,7 +64,7 @@ const NFTPage = () => {
       const web3Instance = new Web3(window.ethereum);
       setWeb3(web3Instance);
     } else {
-      setError('MetaMask not installed');
+      setWeb3(new Web3('http://127.0.0.1:7545'));
     }
   };
 
@@ -123,10 +123,10 @@ const NFTPage = () => {
   };
 
   const fetchBlockchainData = async () => {
-    if (!web3) return;
+    const reader = new Web3('http://127.0.0.1:7545');
 
     try {
-      const nftContract = new web3.eth.Contract(NFT_ABI, VEHICLE_NFT_ADDRESS);
+      const nftContract = new reader.eth.Contract(NFT_ABI, VEHICLE_NFT_ADDRESS);
 
       try {
         const nftExists = await nftContract.methods.nftExistsForInspection(inspectionId).call();

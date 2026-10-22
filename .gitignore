@@ -1,0 +1,14 @@
+node_modules/
+.local/
+.env
+.env.*
+!.env.example
+build/
+dist/
+**/tmp/
+**/uploads/
+*.log
+.DS_Store
+.playwright-mcp/
+
+.local

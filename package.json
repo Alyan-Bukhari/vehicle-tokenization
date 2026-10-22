@@ -1,0 +1,26 @@
+{
+  "name": "vehicle-tokenization",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first vehicle registration, inspection, taxation and NFT ownership certificates",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm --prefix taxtron/frontend run build",
+    "deploy": "node scripts/deploy.mjs",
+    "test": "node --test tests/api.test.cjs",
+    "test:contracts": "cd taxtron/backend && truffle test --network development",
+    "check": "node scripts/check.mjs",
+    "test:integration": "node scripts/test-integration.mjs",
+    "lint": "npm --prefix taxtron/frontend run lint",
+    "seed:demo": "node scripts/seed-demo.mjs"
+  },
+  "devDependencies": {
+    "ganache": "7.9.2",
+    "solc": "0.8.20",
+    "truffle": "5.11.5"
+  }
+}

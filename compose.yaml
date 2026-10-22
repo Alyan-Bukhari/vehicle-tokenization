@@ -1,0 +1,13 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: ["mongo-data:/data/db"]
+  ganache:
+    image: trufflesuite/ganache:v7.9.2
+    command: ["--server.host", "0.0.0.0", "--chain.chainId", "1337", "--chain.networkId", "5777", "--database.dbPath", "/data", "--wallet.defaultBalance", "100"]
+    ports: ["127.0.0.1:7545:8545"]
+    volumes: ["chain-data:/data"]
+volumes:
+  mongo-data:
+  chain-data:

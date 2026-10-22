@@ -1,0 +1,44 @@
+name: Validate application
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            taxtron/backend/package-lock.json
+            taxtron/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run setup
+      - name: Start local stack
+        run: |
+          npm run dev > /tmp/vehicle-tokenization.log 2>&1 &
+          for i in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:5173/api/health; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/vehicle-tokenization.log
+          cat .local/logs/*.log
+          exit 1
+      - run: npm run lint
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:contracts
+      - run: npm run test:integration
+      - name: Show logs on failure
+        if: failure()
+        run: cat /tmp/vehicle-tokenization.log .local/logs/*.log || true

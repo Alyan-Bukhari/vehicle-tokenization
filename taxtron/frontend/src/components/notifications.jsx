@@ -161,7 +161,7 @@ const Notifications = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <h4 className="font-semibold text-white text-lg">
-                            Vehicle Owner: {v.vehicleDetails?.ownerName || "N/A"}
+                            Vehicle Owner: {v.userId?.fullName || storedUser()?.fullName || 'Vehicle owner'}
                           </h4>
                           <p className="text-sm text-gray-400 mt-1">
                             Inspection ID: {v.inspectionId}

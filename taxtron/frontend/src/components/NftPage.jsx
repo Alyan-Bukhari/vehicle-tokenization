@@ -124,22 +124,24 @@ const NFTPage = () => {
     }
   };
 
-  const fetchBlockchainData = async () => {
+  const fetchBlockchainData = async (block = 'latest') => {
     const reader = new Web3(network.rpcUrl);
 
     try {
       const nftContract = new reader.eth.Contract(NFT_ABI, VEHICLE_NFT_ADDRESS);
+      const readBlock = block === 'latest' ? await reader.eth.getBlockNumber() : block;
+      const read = method => method.call({}, readBlock);
 
       try {
-        const nftExists = await nftContract.methods.nftExistsForInspection(inspectionId).call();
+        const nftExists = await read(nftContract.methods.nftExistsForInspection(inspectionId));
 
         if (nftExists) {
-          const tokenId = await nftContract.methods.getTokenIdByInspection(inspectionId).call();
-          const tokenURI = await nftContract.methods.tokenURI(tokenId).call();
-          const tokenOwner = await nftContract.methods.ownerOf(tokenId).call();
+          const tokenId = await read(nftContract.methods.getTokenIdByInspection(inspectionId));
+          const tokenURI = await read(nftContract.methods.tokenURI(tokenId));
+          const tokenOwner = await read(nftContract.methods.ownerOf(tokenId));
 
           // Get vehicle info from contract
-          const vehicleInfo = await nftContract.methods.getVehicleInfo(inspectionId).call();
+          const vehicleInfo = await read(nftContract.methods.getVehicleInfo(inspectionId));
 
           setNftData({
             tokenId: tokenId,
@@ -164,8 +166,7 @@ const NFTPage = () => {
         }
 
       } catch (nftError) {
-        console.log('NFT not minted yet:', nftError.message);
-        setNftData({ exists: false });
+        setError('Certificate data could not be loaded from the network. Please refresh to retry.');
       }
 
       console.log('Blockchain data fetched for inspection ID:', inspectionId);
@@ -248,80 +249,19 @@ const NFTPage = () => {
       const vehicleType = vehicleData.vehicleDetails?.vehicleType || '';
       const registrationNumber = vehicleData.registrationNumber || '';
 
-      try {
-        // Try the extended function first (with vehicle details)
-        const gasEstimate = await nftContract.methods.mintVehicleNFT(
-          inspectionIdStr,
-          walletAddress,
-          metadataURI,
-          make,
-          model,
-          year,
-          vehicleType,
-          registrationNumber
-        ).estimateGas({
-          from: walletAddress
-        });
-
-        console.log('Gas estimate:', gasEstimate);
-
-        const tx = await nftContract.methods.mintVehicleNFT(
-          inspectionIdStr,
-          walletAddress,
-          metadataURI,
-          make,
-          model,
-          year,
-          vehicleType,
-          registrationNumber
-        ).send({
-          from: walletAddress,
-          gas: Math.floor(Number(gasEstimate) * 1.2)
-        });
-
-        console.log('NFT minted successfully for inspection ID:', inspectionId, tx);
-        setNftGenerated(true);
-        setShowCertificate(true);
-
-        setTimeout(async () => {
-          await fetchBlockchainData();
-        }, 2000);
-
-        alert('NFT Certificate generated successfully!');
-
-      } catch (extendedError) {
-        console.log('Extended mint failed, trying simple version:', extendedError.message);
-
-        // Fallback to simple version
-        const gasEstimate = await nftContract.methods.mintVehicleNFT(
-          inspectionIdStr,
-          walletAddress,
-          metadataURI
-        ).estimateGas({
-          from: walletAddress
-        });
-
-        console.log('Gas estimate (simple):', gasEstimate);
-
-        const tx = await nftContract.methods.mintVehicleNFT(
-          inspectionIdStr,
-          walletAddress,
-          metadataURI
-        ).send({
-          from: walletAddress,
-          gas: Math.floor(Number(gasEstimate) * 1.2)
-        });
-
-        console.log('NFT minted successfully (simple) for inspection ID:', inspectionId, tx);
-        setNftGenerated(true);
-        setShowCertificate(true);
-
-        setTimeout(async () => {
-          await fetchBlockchainData();
-        }, 2000);
-
-        alert('NFT Certificate generated successfully!');
-      }
+      // Select the ABI overload before sending. A rejected or failed transaction
+      // must never trigger a second wallet transaction through a fallback.
+      const method = nftContract.methods['mintVehicleNFT(string,address,string,string,string,string,string,string)'](
+        inspectionIdStr, walletAddress, metadataURI, make, model, year, vehicleType, registrationNumber
+      );
+      const gasEstimate = await method.estimateGas({from:walletAddress});
+      const tx = await method.send({from:walletAddress,gas:Math.floor(Number(gasEstimate)*1.2)});
+      setNftGenerated(true);
+      setShowCertificate(true);
+      // Read every certificate field at the confirmed mint block. Public RPC
+      // pools can otherwise serve a pre-mint latest state from another node.
+      await fetchBlockchainData(tx.blockNumber);
+      alert('NFT Certificate generated successfully!');
 
     } catch (error) {
       console.error('NFT generation failed for inspection ID:', inspectionId, error);
@@ -349,8 +289,15 @@ const NFTPage = () => {
   };
 
   const viewOnExplorer = () => {
+    if (network.chainId === 11155111) {
+      const path = nftData?.tokenId
+        ? `/token/${VEHICLE_NFT_ADDRESS}?a=${encodeURIComponent(nftData.tokenId)}`
+        : transactionHash ? `/tx/${encodeURIComponent(transactionHash)}` : null;
+      if (path) window.open(`https://sepolia.etherscan.io${path}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (nftData?.tokenId) {
-      alert(`NFT Token ID: ${nftData.tokenId}\n\nNFT Contract: ${VEHICLE_NFT_ADDRESS}\nRegistry Contract: ${VEHICLE_REGISTRY_ADDRESS}\n\nTo view in Ganache:\n1. Open Ganache application\n2. Go to "Contracts" tab\n3. Check both contract addresses`);
+      alert(`Network: ${network.name}\nNFT Token ID: ${nftData.tokenId}\n\nNFT Contract: ${VEHICLE_NFT_ADDRESS}\nRegistry Contract: ${VEHICLE_REGISTRY_ADDRESS}`);
     } else if (transactionHash) {
       alert(`Payment TX: ${transactionHash}\n\nContracts:\nRegistry: ${VEHICLE_REGISTRY_ADDRESS}\nNFT: ${VEHICLE_NFT_ADDRESS}`);
     }

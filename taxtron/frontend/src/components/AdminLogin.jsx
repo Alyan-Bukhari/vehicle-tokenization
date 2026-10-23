@@ -4,8 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import TaxTronLogo from "./TaxTronLogo";
 
 const AdminLogin = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -19,7 +18,15 @@ const AdminLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    // Read the actual form fields, including Chrome/password-manager autofill.
+    const fields = new FormData(e.currentTarget);
+    const username = String(fields.get('username') || '').trim();
+    const password = String(fields.get('password') || '');
     setError("");
+    if (!username || !password) {
+      setError('Enter your administrator username and password.');
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -68,26 +75,27 @@ const AdminLogin = () => {
         )}
         <form onSubmit={handleSubmit} className="space-y-6 text-left">
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Username</label>
+            <label htmlFor="admin-username" className="block text-gray-700 font-medium mb-2">Username</label>
             <input
+              id="admin-username"
+              name="username"
               type="text"
               autoComplete="username"
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Password</label>
+            <label htmlFor="admin-password" className="block text-gray-700 font-medium mb-2">Password</label>
             <input
-              type="password"
+              id="admin-password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <button type="button" className="mt-2 text-sm text-green-700 underline" aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? 'Hide password' : 'Show password'}</button>
           </div>
           <button
             type="submit"

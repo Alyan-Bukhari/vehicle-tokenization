@@ -49,6 +49,10 @@ test('appointment booking validates dates and rejects competing reservations',as
  const available=await request('/appointments/available');assert.equal(available.status,200);
  bookingDate=available.body.data[0].date;
  inspectionId=`INSP-TEST-${Date.now()}`;
+ for(const timeSlot of ['10:30 AM','9:00 AM']) {
+  assert.equal((await request('/appointments/book','POST',{date:bookingDate,timeSlot,inspectionId},userToken)).status,400);
+ }
+ assert.ok(available.body.data[0].availableTimeSlots.includes('09:00 AM'));
  assert.equal((await request('/appointments/book','POST',{date:'2000-01-01',timeSlot:'09:00 AM',inspectionId},userToken)).status,400);
  const booking={date:bookingDate,timeSlot:'09:00 AM',inspectionId};
  const results=await Promise.all([request('/appointments/book','POST',booking,userToken),request('/appointments/book','POST',{...booking,inspectionId:inspectionId+'-2'},userToken)]);

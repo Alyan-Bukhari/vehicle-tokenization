@@ -45,3 +45,9 @@ Run `npm run dev` first for local services and run the chain suites sequentially
 - [Transfer transaction](https://sepolia.etherscan.io/tx/0x59b3dca35ab8daf5c43d903f96a78603ead73f0133ccbde094ddc1f95b494a60)
 
 The public chain retains synthetic QA records permanently. Temporary hosted QA records and images are removed after browser verification; private QA wallet keys are never committed.
+
+## Booking form correction
+
+A user screenshot exposed a gap in the initial QA: API tests used the server's supported slots, while the actual form offered hardcoded 15-minute slots and forced them available. The form now renders only the selected day's API-provided slots, preserving their exact values (`09:00 AM`, `10:00 AM`, etc.). It validates the selection, disables changes while booking, and refreshes availability after a conflict. Manual registration now includes the required vehicle type and registration year fields.
+
+An actual browser run selected October 31 at `10:00 AM`, booked it, and submitted a manual registration. Direct MongoDB inspection and an authenticated `/api/vehicles/my-vehicles` request verified the matching appointment and inspection were stored and fetched. Regression tests also reject unsupported `10:30 AM` and incorrectly formatted `9:00 AM` slots. Frontend lint, build and API/session tests pass.

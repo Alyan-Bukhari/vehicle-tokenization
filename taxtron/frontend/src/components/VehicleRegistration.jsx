@@ -18,6 +18,7 @@ const VehicleRegistration = () => {
   const [appointmentSuccess, setAppointmentSuccess] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [isBooked, setIsBooked] = useState(false);
+  const availableTimeSlots = availableDates.find(day => day.date === scheduledDate)?.availableTimeSlots || [];
 
   // Date carousel state
   const [dateCarouselIndex, setDateCarouselIndex] = useState(0);
@@ -207,6 +208,7 @@ const VehicleRegistration = () => {
 
   const handleTimeSlotSelect = (timeSlot) => {
     setSelectedTimeSlot(timeSlot);
+    setAppointmentError('');
   };
 
   // Edit mode functions
@@ -232,8 +234,9 @@ const VehicleRegistration = () => {
   };
 
   const bookAppointment = async () => {
-    if (!scheduledDate || !selectedTimeSlot) {
-      setAppointmentError('Please select both date and time slot');
+    if (appointmentLoading || isBooked) return;
+    if (!scheduledDate || !availableTimeSlots.includes(selectedTimeSlot)) {
+      setAppointmentError('Please select an available date and time slot.');
       return;
     }
 
@@ -256,12 +259,16 @@ const VehicleRegistration = () => {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setAppointmentSuccess('Appointment booked successfully!');
         setIsBooked(true);
         setAppointmentError('');
       } else {
         setAppointmentError(data.message || 'Failed to book appointment');
+        if (response.status === 409) {
+          setSelectedTimeSlot('');
+          await fetchAvailableDates();
+        }
       }
     } catch (error) {
       setAppointmentError('Error booking appointment: ' + error.message);
@@ -617,6 +624,18 @@ const VehicleRegistration = () => {
                       placeholder="e.g., 1798"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="manual-vehicle-type" className="block text-sm font-medium text-gray-700 mb-2">Vehicle Type *</label>
+                    <select id="manual-vehicle-type" name="vehicleType" value={vehicleData.vehicleType} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                      <option value="">Select vehicle type</option>
+                      {['Car','Motorcycle','Truck','Bus','Van','SUV','Other'].map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="manual-registration-year" className="block text-sm font-medium text-gray-700 mb-2">Registration Year *</label>
+                    <input id="manual-registration-year" type="number" name="registrationYear" value={vehicleData.registrationYear} onChange={handleChange} min="1900" max={new Date().getFullYear()+1} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                   </div>
 
                   {/* Color */}
@@ -1100,8 +1119,9 @@ const VehicleRegistration = () => {
                             <button
                               key={day}
                               type="button"
+                              aria-label={`Book on ${dateStr}`}
                               onClick={() => isAvailable && handleDateSelect(availableDates.find(d => d.date === dateStr))}
-                              disabled={!isAvailable}
+                              disabled={!isAvailable || appointmentLoading}
                               className={`w-10 h-10 text-sm font-medium rounded-full transition-all flex items-center justify-center ${
                                 isSelected
                                   ? 'bg-green-500 text-white shadow-md'
@@ -1126,36 +1146,34 @@ const VehicleRegistration = () => {
                   {scheduledDate ? (
                     <div>
                       <h4 className="text-base font-semibold text-gray-900 mb-3">
-                        {new Date(scheduledDate).toLocaleDateString('en-US', {
+                        {new Date(`${scheduledDate}T12:00:00+05:00`).toLocaleDateString('en-US', {
+                          timeZone: 'Asia/Karachi',
                           weekday: 'long',
                           month: 'long',
                           day: 'numeric'
                         })}
                       </h4>
                       <div className="space-y-2">
-                        {['9:00 AM', '9:15 AM', '9:30 AM', '9:45 AM', '10:00 AM', '10:15 AM', '10:30 AM', '10:45 AM'].map((time) => {
-                          const selectedDateObj = availableDates.find(d => d.date === scheduledDate);
-                          const isAvailable = selectedDateObj?.availableTimeSlots?.includes(time) || true;
+                        {availableTimeSlots.map((time) => {
                           const isSelected = selectedTimeSlot === time;
 
                           return (
                             <button
                               key={time}
                               type="button"
-                              onClick={() => isAvailable && handleTimeSlotSelect(time)}
-                              disabled={!isAvailable}
+                              onClick={() => handleTimeSlotSelect(time)}
+                              disabled={appointmentLoading}
                               className={`w-full p-2.5 text-left rounded-lg border transition-all text-sm ${
                                 isSelected
                                   ? 'bg-green-500 text-white border-green-500'
-                                  : isAvailable
-                                    ? 'bg-white hover:bg-gray-50 border-gray-200 hover:border-green-300'
-                                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                  : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-green-300'
                               }`}
                             >
                               {time}
                             </button>
                           );
                         })}
+                        {!availableTimeSlots.length && <p className="text-sm text-gray-500">No slots remain on this date. Please choose another date.</p>}
                       </div>
 
                       {selectedTimeSlot && (

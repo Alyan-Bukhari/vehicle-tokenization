@@ -31,6 +31,8 @@ test('admin sessions cannot be created anonymously and protected data requires a
  assert.equal((await request('/inspections')).status,401);
  const login=await request('/admin/login','POST',{email:'admin',password:'testpass123'});
  assert.equal(login.status,200);adminToken=login.body.token;
+ assert.equal((await request('/admin/login','POST',{email:' admin ',password:'testpass123'})).status,200);
+ assert.equal((await request('/admin/login','POST',{email:'admin',password:null})).status,400);
 });
 test('registration validates input and creates a user with hashed credentials',async()=>{
  assert.equal((await request('/users/register','POST',{...user,cnic:'invalid'})).status,400);
@@ -96,7 +98,8 @@ test('quoted CSV import preserves fields and leaves payment pending',async()=>{
 
 test('on-chain registration, tax, NFT and approved ownership transfer synchronize with the API',{skip:process.env.RUN_CHAIN_TESTS!=='1'},async()=>{
  chain=new Web3('http://127.0.0.1:7545');accounts=await chain.eth.getAccounts();
- const snapshot=await chain.currentProvider.request({method:'evm_snapshot',params:[]});
+ const snapshotResponse=await chain.currentProvider.request({method:'evm_snapshot',params:[]});
+ const snapshot=snapshotResponse.result ?? snapshotResponse;
  try {
   const artifact=require(path.join(backend,'build/contracts/VehicleRegistration.json'));
   const nftArtifact=require(path.join(backend,'build/contracts/VehicleNFT.json'));
@@ -115,7 +118,21 @@ test('on-chain registration, tax, NFT and approved ownership transfer synchroniz
   assert.equal((await request(`/inspections/${record._id}/status`,'PUT',{status:'Approved',registrationNumber:registration},adminToken)).status,200);
   async function send(method,from,value='0'){const gas=await method.estimateGas({from,value});return method.send({from,value,gas:Math.ceil(Number(gas)*1.2)});}
   const fee='5000000000000000';
-  const payment=await send(registry.methods.registerVehicle(id,'Toyota','Corolla',2022,details.engineNumber,details.chassisNumber,'Car',1800,registration,fee,''),accounts[2],fee);
+  const source=require('node:fs').readFileSync(path.join(root,'taxtron/frontend/src/utils/registrationPayment.js'),'utf8');
+  const {sendRegistrationPayment}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  let submittedHash;
+  const walletProvider={request:async({method,params=[]})=>{
+   if(method==='eth_sendTransaction') {
+    assert.equal(params.length,1);
+    for(const field of ['gas','value','data'])assert.match(params[0][field],/^0x[0-9a-f]+$/i,`Invalid wallet RPC ${field}`);
+    assert.equal(params[0].from.toLowerCase(),accounts[2].toLowerCase());
+   }
+   const response=await chain.currentProvider.request({method,params});
+   if(response.error)throw Object.assign(new Error(response.error.message),{code:response.error.code});
+   return response.result;
+  }};
+  const payment=await sendRegistrationPayment({web3:new Web3(walletProvider),account:accounts[2],inspection:{inspectionId:id,status:'Approved',registrationNumber:registration,userId:{walletAddress:accounts[2]},vehicleDetails:{...details,totalFee:5000}},contractAddress:registry.options.address,abi:artifact.abi,chainId:1337,onTransactionHash:hash=>{submittedHash=hash;}});
+  assert.equal(submittedHash,payment.transactionHash);
   const receiptView=await request(`/blockchain/transactions/${payment.transactionHash}`);assert.equal(receiptView.status,200);assert.equal(receiptView.body.data.status,'Confirmed');
   const recorded=await request(`/inspections/${id}/payment`,'POST',{transactionHash:payment.transactionHash,isPaid:true,registrationNumber:registration},token);assert.equal(recorded.status,200,JSON.stringify(recorded.body));assert.equal(recorded.body.data.isPaid,true);
   await send(registry.methods.setTaxAmount(id,'1000000000000000'),accounts[0]);
@@ -133,5 +150,5 @@ test('on-chain registration, tax, NFT and approved ownership transfer synchroniz
   assert.equal((await nft.methods.ownerOf(tokenId).call()).toLowerCase(),accounts[3].toLowerCase());
   assert.equal((await request(`/inspections/${id}`,'GET',undefined,token)).status,403);
   assert.equal((await request(`/inspections/${id}`,'GET',undefined,buyerToken)).status,200);
- }finally{await chain.currentProvider.request({method:'evm_revert',params:[snapshot]});}
+ }finally{const reverted=await chain.currentProvider.request({method:'evm_revert',params:[snapshot]});assert.equal(reverted.result ?? reverted,true);}
 });

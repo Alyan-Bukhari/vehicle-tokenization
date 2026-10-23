@@ -51,3 +51,11 @@ The public chain retains synthetic QA records permanently. Temporary hosted QA r
 A user screenshot exposed a gap in the initial QA: API tests used the server's supported slots, while the actual form offered hardcoded 15-minute slots and forced them available. The form now renders only the selected day's API-provided slots, preserving their exact values (`09:00 AM`, `10:00 AM`, etc.). It validates the selection, disables changes while booking, and refreshes availability after a conflict. Manual registration now includes the required vehicle type and registration year fields.
 
 An actual browser run selected October 31 at `10:00 AM`, booked it, and submitted a manual registration. Direct MongoDB inspection and an authenticated `/api/vehicles/my-vehicles` request verified the matching appointment and inspection were stored and fetched. Regression tests also reject unsupported `10:30 AM` and incorrectly formatted `9:00 AM` slots. Frontend lint, build and API/session tests pass.
+
+## Payment request and admin-login correction
+
+Registration payment now switches/checks the configured network at payment time, reacquires the active MetaMask account, verifies it matches the inspection owner, validates the deployed contract and all ABI inputs, and calculates demo wei with integer arithmetic. Confirmed/submitted transaction hashes are retained for receipt-save retries; retrying a submitted payment checks its receipt instead of sending another payment. The page shows the network and test ETH amount.
+
+The integration test now uses the frontend payment helper through an EIP-1193 wallet-style provider and asserts valid hex gas/value/calldata before forwarding the transaction. All 9 integration tests pass; the API/session/payment suite has 15 passes with its optional chain case covered separately. Lint and build pass. This verifies the generated RPC payload; it does not automate the user's Chrome MetaMask popup.
+
+The private hosted admin credential reference was stale and was corrected to the credentials verified by a live successful login. Credentials remain outside Git. Admin usernames are trimmed, malformed login payloads return 400, and duplicate login submissions are disabled.

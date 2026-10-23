@@ -1,4 +1,6 @@
-import registryConfig, { NFT_ADDRESS } from '../contractConfig';
+import {network} from '../config/network';
+import {sendRegistrationPayment} from '../utils/registrationPayment';
+import registryConfig from '../contractConfig';
 import { ensureLocalNetwork } from '../utils/network';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -26,7 +28,6 @@ const Fee = () => {
   const [error, setError] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [transactionHash, setTransactionHash] = useState('');
-  const [web3, setWeb3] = useState(null);
 
   // Get the ABI in the correct format
   const CONTRACT_ABI = contractABIData.abi || contractABIData;
@@ -165,20 +166,11 @@ const Fee = () => {
 
   // Use your actual deployed Vehicle Registration contract address
   const CONTRACT_ADDRESS = registryConfig.address; // Your deployed Vehicle Registration contract
-  const TREASURY_ADDRESS = "0x4E7f5a1D602ea6a326BA6272defB76CBB1Ff938d"; // Replace with actual treasury address
 
   useEffect(() => {
-    initializeWeb3();
     fetchVehicleData();
     checkWalletConnection();
   }, [inspectionId]);
-
-  const initializeWeb3 = async () => {
-    if (window.ethereum) {
-      const web3Instance = new Web3(window.ethereum);
-      setWeb3(web3Instance);
-    }
-  };
 
   const checkWalletConnection = async () => {
     if (window.ethereum) {
@@ -187,7 +179,7 @@ const Fee = () => {
         if (accounts.length > 0) {
           setWalletAddress(accounts[0]);
           // Check blockchain payment status if wallet is connected
-          checkBlockchainPaymentStatus(accounts[0]);
+
         }
       } catch (error) {
         console.error('Error checking wallet connection:', error);
@@ -202,7 +194,7 @@ const Fee = () => {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         setWalletAddress(accounts[0]);
         // Check blockchain payment status after connecting
-        checkBlockchainPaymentStatus(accounts[0]);
+
       } catch (error) {
         setError('Failed to connect wallet');
       }
@@ -211,34 +203,12 @@ const Fee = () => {
     }
   };
 
-  const checkBlockchainPaymentStatus = async (address) => {
-    if (!address || !inspectionId || !web3) return;
-
-    try {
-      const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-      // Check if vehicle is registered on blockchain
-      try {
-        const paymentStatus = await contract.methods.getPaymentStatus(inspectionId).call();
-        setIsPaid(paymentStatus.registrationPaid);
-
-        if (paymentStatus.registrationPaid) {
-          // Get vehicle details from blockchain
-          const vehicleData = await contract.methods.getVehicle(inspectionId).call();
-          setTransactionHash(vehicleData.registrationTxHash);
-        }
-      } catch (contractError) {
-        // Vehicle not found on blockchain, check backend
-        console.log('Vehicle not found on blockchain, checking backend...');
-      }
-    } catch (error) {
-      console.error('Error checking blockchain payment status:', error);
-    }
-  };
-
   const fetchVehicleData = async () => {
     try {
       setLoading(true);
+      setIsPaid(false);
+      setTransactionHash('');
+      setError('');
 
       // Debug: Log the inspection ID being used
       console.log('Fetching data for inspection ID:', inspectionId);
@@ -287,139 +257,65 @@ const Fee = () => {
       const response = await fetch(`/api/inspections/${inspectionId}/payment-status`);
       if (response.ok) {
         const data = await response.json();
-        if (!isPaid) { // Only set from backend if not already set from blockchain
-          setIsPaid(data.isPaid || false);
-          setTransactionHash(data.transactionHash || '');
-        }
+        setIsPaid(data.isPaid || false);
+        setTransactionHash(data.transactionHash || '');
       }
     } catch (error) {
       console.log('Payment status check failed:', error);
     }
   };
 
-  const generateRegistrationNumber = () => {
-    // Generate a unique registration number (implement your logic)
-    const prefix = vehicleData.vehicleDetails.vehicleType.substring(0, 2).toUpperCase();
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `${prefix}-${timestamp}-${random}`;
-  };
-
   const handlePayment = async () => {
-    if (!walletAddress) {
-      await connectWallet();
-      return;
-    }
-
-    if (!web3) {
-      setError('Web3 not initialized');
-      return;
-    }
-
+    if (paymentLoading) return;
+    const pendingKey = `registration-payment:${inspectionId}`;
     try {
       setPaymentLoading(true);
       setError('');
-
-      // Convert fee from PKR to Wei (you'll need to implement proper conversion rate)
-      // For demonstration, assuming 1 PKR = 0.000001 ETH (adjust according to actual exchange rate)
-      const feeInEth = vehicleData.vehicleDetails.totalFee * 0.000001;
-      const feeInWei = web3.utils.toWei(feeInEth.toString(), 'ether');
-
-      // Create contract instance
-      const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-      // Generate registration number
-      const registrationNumber = vehicleData.registrationNumber;
-      if (!registrationNumber) throw new Error('An approved registration number is required.');
-
-      // Debug: Log all vehicle data to identify undefined values
-      console.log('Vehicle Data Debug:', {
-        inspectionId: vehicleData.inspectionId,
-        make: vehicleData.vehicleDetails.make,
-        model: vehicleData.vehicleDetails.model,
-        Manuyear: vehicleData.vehicleDetails.manufacturingYear,
-        engineNumber: vehicleData.vehicleDetails.engineNumber,
-        chassisNumber: vehicleData.vehicleDetails.chassisNumber,
-        vehicleType: vehicleData.vehicleDetails.vehicleType,
-        engineCapacity: vehicleData.vehicleDetails.engineCapacity,
-        totalFee: vehicleData.vehicleDetails.totalFee
-      });
-
-      // Safely convert values to strings with fallbacks
-      const inspectionId = vehicleData.inspectionId || '';
-      const make = vehicleData.vehicleDetails.make || '';
-      const model = vehicleData.vehicleDetails.model || '';
-      const year = (vehicleData.vehicleDetails.manufacturingYear || vehicleData.vehicleDetails.year || 0).toString();
-      const engineNumber = vehicleData.vehicleDetails.engineNumber || '';
-      const chassisNumber = vehicleData.vehicleDetails.chassisNumber || '';
-      const vehicleType = vehicleData.vehicleDetails.vehicleType || '';
-      const engineCapacity = (vehicleData.vehicleDetails.engineCapacity || 0).toString();
-      const totalFee = (vehicleData.vehicleDetails.totalFee || 0).toString();
-
-      // Convert fee to wei (use string representation for large numbers)
-      const feeInWeiString = feeInWei;
-
-      // Estimate gas for the transaction
-      const gasEstimate = await contract.methods.registerVehicle(
-        inspectionId,
-        make,
-        model,
-        year,
-        engineNumber,
-        chassisNumber,
-        vehicleType,
-        engineCapacity,
-        registrationNumber,
-        feeInWeiString,
-        "" // Transaction hash will be updated after confirmation
-      ).estimateGas({
-        from: walletAddress,
-        value: feeInWei
-      });
-
-      // Call smart contract to register vehicle with payment
-      const tx = await contract.methods.registerVehicle(
-        inspectionId,
-        make,
-        model,
-        year,
-        engineNumber,
-        chassisNumber,
-        vehicleType,
-        engineCapacity,
-        registrationNumber,
-        feeInWeiString,
-        "" // Transaction hash will be updated after confirmation
-      ).send({
-        from: walletAddress,
-        value: feeInWei,
-        gas: Math.floor(Number(gasEstimate) * 1.2) // Add 20% buffer to gas estimate
-      });
-
-      console.log('Transaction confirmed:', tx);
-
-      // Update backend with payment status
-      await updatePaymentStatus(tx.transactionHash, registrationNumber);
-
+      await ensureLocalNetwork();
+      const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+      const account = accounts[0];
+      const client = new Web3(window.ethereum);
+      setWalletAddress(account || '');
+      const registrationNumber = vehicleData?.registrationNumber;
+      let pending;
+      try { pending = JSON.parse(localStorage.getItem(pendingKey)); } catch { localStorage.removeItem(pendingKey); }
+      let hash;
+      if (/^0x[a-fA-F0-9]{64}$/.test(pending?.hash || '') && pending.chainId === network.chainId && pending.wallet?.toLowerCase() === account?.toLowerCase()) {
+        hash = pending.hash;
+        setTransactionHash(hash);
+        const receipt = await client.eth.getTransactionReceipt(hash);
+        if (!receipt) throw new Error('Your transaction is still pending. Wait for confirmation and check payment again.');
+        if (!receipt.status) {
+          localStorage.removeItem(pendingKey);
+          throw new Error('The previous transaction failed on chain. Retry to submit a new payment.');
+        }
+      } else {
+        const receipt = await sendRegistrationPayment({
+          web3:client,account,inspection:vehicleData,contractAddress:CONTRACT_ADDRESS,
+          abi:CONTRACT_ABI,chainId:network.chainId,
+          onTransactionHash:submittedHash => {
+            setTransactionHash(submittedHash);
+            localStorage.setItem(pendingKey,JSON.stringify({hash:submittedHash,wallet:account,chainId:network.chainId}));
+          }
+        });
+        hash = receipt.transactionHash;
+      }
+      await updatePaymentStatus(hash, registrationNumber);
+      localStorage.removeItem(pendingKey);
       setIsPaid(true);
-      setTransactionHash(tx.transactionHash);
-
-      // Update vehicle data with registration number
-      setVehicleData(prev => ({
-        ...prev,
-        registrationNumber: registrationNumber
-      }));
-
+      setTransactionHash(hash);
       alert('Payment successful! Vehicle registered on blockchain.');
 
     } catch (error) {
       console.error('Payment failed:', error);
-      let errorMessage = 'Payment failed: ';
+      let errorMessage = error.receiptSaveFailed ? 'Payment confirmed; receipt save needs retry: ' : 'Payment failed: ';
 
       if (error.code === 4001) {
         errorMessage += 'Transaction rejected by user';
       } else if (error.code === -32603) {
-        errorMessage += 'Internal JSON-RPC error';
+        errorMessage += error.message || 'The wallet RPC request failed. Check the selected network.';
+      } else if (error.code === -32602) {
+        errorMessage += 'MetaMask rejected the transaction parameters. Confirm Ethereum Sepolia is selected and the registered owner account is connected.';
       } else if (error.message && error.message.includes('insufficient funds')) {
         errorMessage += 'Insufficient funds in wallet';
       } else if (error.message && error.message.includes('gas')) {
@@ -445,12 +341,11 @@ const Fee = () => {
         body: JSON.stringify({
           isPaid: true,
           transactionHash: txHash,
-          walletAddress: walletAddress,
           registrationNumber: registrationNumber,
           blockchainConfirmed: true
         })
       });
-      if(!response.ok) {const data=await response.json();throw new Error(data.message || 'Could not save the confirmed payment.');}
+      if(!response.ok) {const data=await response.json();throw Object.assign(new Error(data.message || 'Could not save the confirmed payment.'),{receiptSaveFailed:true});}
   };
 
   const goToNFT = () => {
@@ -482,10 +377,10 @@ const Fee = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Error</h3>
             <p className="text-gray-600 mb-4">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {setError(''); if (!vehicleData) fetchVehicleData();}}
               className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
             >
-              Retry
+              {transactionHash ? 'Check payment again' : 'Retry'}
             </button>
           </div>
         </div>
@@ -523,7 +418,7 @@ const Fee = () => {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Vehicle Registration Fee</h1>
-              <p className="text-sm text-gray-600">Complete your vehicle registration payment</p>
+              <p className="text-sm text-gray-600">Network: {network.name}. Use the registered owner wallet and test ETH.</p>
             </div>
           </div>
         </div>
@@ -652,7 +547,7 @@ const Fee = () => {
                   )}
                 </button>
                 <p className="text-gray-600 text-sm">
-                  Registration fee will be deducted from your MetaMask wallet
+                  Test payment: {Web3.utils.fromWei((BigInt(vehicleDetails.totalFee)*1000000000000n).toString(),'ether')} test ETH, plus network gas.
                 </p>
               </div>
             </div>
@@ -688,7 +583,7 @@ const Fee = () => {
                   <h4 className="font-semibold text-blue-900 mb-3">Next Steps:</h4>
                   <ul className="text-blue-800 space-y-2 text-sm">
                     <li>• Tax payment can be made separately when required</li>
-                    <li>• Your vehicle is now officially registered</li>
+                    <li>• Your vehicle is registered on the configured test network</li>
                     <li>• See your Vehicle NFT certificate</li>
                   </ul>
                 </div>

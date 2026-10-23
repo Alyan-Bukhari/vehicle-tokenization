@@ -7,6 +7,7 @@ const AdminLogin = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -17,7 +18,9 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
 
     try {
       const response = await fetch('/api/admin/login', {
@@ -26,7 +29,7 @@ const AdminLogin = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: username,
+          email: username.trim(),
           password: password
         }),
       });
@@ -43,6 +46,8 @@ const AdminLogin = () => {
       }
     } catch (error) {
       setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -66,6 +71,7 @@ const AdminLogin = () => {
             <label className="block text-gray-700 font-medium mb-2">Username</label>
             <input
               type="text"
+              autoComplete="username"
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -76,6 +82,7 @@ const AdminLogin = () => {
             <label className="block text-gray-700 font-medium mb-2">Password</label>
             <input
               type="password"
+              autoComplete="current-password"
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -84,12 +91,13 @@ const AdminLogin = () => {
           </div>
           <button
             type="submit"
+            disabled={submitting}
             className="w-full text-white font-semibold py-3 rounded-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
             style={{backgroundColor: '#8CC152'}}
             onMouseEnter={(e) => e.target.style.backgroundColor = '#7AB142'}
             onMouseLeave={(e) => e.target.style.backgroundColor = '#8CC152'}
           >
-            Log In
+            {submitting ? 'Signing in...' : 'Log In'}
           </button>
         </form>
       </div>

@@ -35,7 +35,11 @@ router.post('/create', adminAuth, async (req, res) => {
 
 // 📌 Admin Login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  if (typeof req.body.email !== 'string' || !req.body.email.trim() || typeof password !== 'string' || !password) {
+    return res.status(400).json({message:'Username and password are required.'});
+  }
+  const email = req.body.email.trim();
   try {
     const admin = await Admin.findOne({ email });
     if (!admin || !(await admin.matchPassword(password))) {
